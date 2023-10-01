@@ -9,17 +9,15 @@ class LinearRegression:
     # ADD BIAS TERMS
     
     def fit(self, X: np.ndarray, y: np.ndarray):
-        print(self.compute_cost(X, y))
         self.w = np.linalg.inv(X.T @ X) @ (X.T @ y)  
-        print(self.compute_cost(X, y))
 
     def predict(self, X: np.ndarray)->np.ndarray:
         return X @ self.w
     
-    def compute_cost(self, X: np.ndarray, y: np.ndarray)->np.float64:
+    def compute_error(self, X: np.ndarray, y: np.ndarray)->np.float64:
         y_hat = X @ self.w
-        squared_error = np.sum(0.5 * (y - y_hat) ** 2)
-        return squared_error
+        mean_squared_error = np.mean(0.5 * (y - y_hat) ** 2)
+        return mean_squared_error
     
 
 
@@ -52,7 +50,10 @@ if __name__=="__main__":
 
     linear_reg_model.fit(X_train, y_train)
 
-    y_test_hat = linear_reg_model.predict(X_test)
+    #y_test_hat = linear_reg_model.predict(X_test)
 
-    y_comp = np.column_stack((y_test, y_test_hat))
-    test_y_df = pd.DataFrame(y_comp, columns=["True y", "Predicted y"])
+    #y_comp = np.column_stack((y_test, y_test_hat))
+    #test_y_df = pd.DataFrame(y_comp, columns=["True y", "Predicted y"])
+    #print(linear_reg_model.compute_error(X_train, y_train))
+    #print(linear_reg_model.compute_error(X_test, y_test))
+    print(linear_reg_model.w)

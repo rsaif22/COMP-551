@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-class LogisticRegression:
+class LogisticRegressionSGD:
     def __init__(self, D: int, num_classes: int):
         self.w = np.zeros((D, num_classes)) # column for each class
         self.num_classes = num_classes
@@ -36,6 +36,12 @@ class LogisticRegression:
         y_hat = self.softmax(X @ self.w)
         return 1/N * X.T @ (y_hat-y)
     
+    def normalize_features(self, X):
+        mean = np.mean(X, axis=0) # N X D matrix
+        std = np.std(X, axis=0)
+        X_normalized = (X - mean) / std
+        return X_normalized
+    
     def encode_y(self, y):
         y = np.reshape(y, (y.size, 1))
         encoded_y = np.broadcast_to(y, (y.size, self.num_classes)).copy()
@@ -45,13 +51,17 @@ class LogisticRegression:
         return encoded_y
             
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
-            max_iters:int = 1e4):
+            batch_size:int = 10, max_iters:int = 1e2):
         y_encoded = self.encode_y(y)
-        grad = self.compute_gradient(X, y_encoded)
+        all_indices = np.arange(y_encoded.shape[0])
+        current_batch = np.random.choice(all_indices, batch_size)
+        grad = self.compute_gradient(X[current_batch, :], y_encoded[current_batch, :])
         num_iters = 0
         while(np.linalg.norm(grad) > epsilon and num_iters < max_iters):
+            #print(self.compute_cost(X, y)[1])
             self.w = self.w - learning_rate*grad
-            grad = self.compute_gradient(X, y_encoded)
+            current_batch = np.random.choice(all_indices, batch_size)
+            grad = self.compute_gradient(X[current_batch, :], y_encoded[current_batch, :])
             num_iters += 1
     
     def predict(self, X):
@@ -78,7 +88,7 @@ if __name__=="__main__":
     y = wine.data.targets.to_numpy()
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
-    logistic_reg = LogisticRegression(X.shape[1] + 1, 3)
+    logistic_reg = LogisticRegressionSGD(X.shape[1] + 1, 3)
     X_train = add_bias(normalize(X_train))
     logistic_reg.fit(X_train, y_train)
 

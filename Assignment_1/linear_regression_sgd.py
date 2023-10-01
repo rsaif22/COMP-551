@@ -9,24 +9,28 @@ class LinearRegressionSGD:
 
     def compute_gradient(self, X: np.ndarray, y: np.ndarray):
         N = y.shape[0]
-        y_hat = X @ self.w
+        y_hat = self.predict(X)
         return 1/N * X.T @ (y_hat-y)
     
-    def compute_cost(self, X: np.ndarray, y: np.ndarray)->np.float64:
+    def compute_error(self, X: np.ndarray, y: np.ndarray)->np.float64:
         y_hat = X @ self.w
-        squared_error = np.sum(0.5 * (y - y_hat) ** 2)
-        return squared_error
+        mean_squared_error = np.mean(0.5 * (y - y_hat) ** 2)
+        return mean_squared_error
     
-    def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-6,
-            batch_size: int = 10, max_iters = 1e8):
+
+    def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
+            batch_size: int = 15, max_iters = 1e5):
+        # Data already shuffled
         y = np.reshape(y, (y.size, 1))
-        grad = self.compute_gradient(X, y)
+        all_indices = np.arange(y.size) # All n values
+        current_batch = np.random.choice(all_indices, batch_size)
+        grad = self.compute_gradient(X[current_batch, :], y[current_batch])
         num_iters = 0
         while (np.linalg.norm(grad) > epsilon and num_iters < max_iters):
-            cost = self.compute_cost(X, y)
-            print(cost)
-            self.w = self.w - learning_rate*grad
-            grad = self.compute_gradient(X, y)
+            #print(self.compute_error(X, y))
+            self.w = self.w - learning_rate * grad
+            current_batch = np.random.choice(all_indices, batch_size)
+            grad = self.compute_gradient(X[current_batch, :], y[current_batch])
             num_iters += 1
 
     def predict(self, X: np.ndarray):
@@ -59,10 +63,14 @@ if __name__=="__main__":
     boston_X = add_bias(boston_X)
     X_train, X_test, y_train, y_test = train_test_split(boston_X, boston_y, test_size=0.2, shuffle=True)
 
+    #linear_reg_sgd_model.fit(X_train, y_train)
     linear_reg_sgd_model.fit(X_train, y_train)
 
     y_test_hat = linear_reg_sgd_model.predict(X_test)
 
     y_comp = np.column_stack((y_test, y_test_hat))
     test_y_df = pd.DataFrame(y_comp, columns=["True y", "Predicted y"])
-    print(test_y_df)
+    #print(test_y_df)
+    #print(linear_reg_sgd_model.compute_error(X_test, y_test))
+    print(linear_reg_sgd_model.w)
+
