@@ -4,7 +4,9 @@ from sklearn.model_selection import train_test_split
 
 class LogisticRegression:
     def __init__(self, D: int, num_classes: int):
-        self.w = np.zeros((D, num_classes)) # column for each class
+        self.w = np.zeros((D+1, num_classes)) # column for each class
+        self.mean = np.zeros((D,))
+        self.std = np.zeros((D,))
         self.num_classes = num_classes
     
     def softmax(self, z:np.ndarray):
@@ -46,26 +48,30 @@ class LogisticRegression:
             
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
             max_iters:int = 1e4):
+        self.mean = np.mean(X, axis=0)
+        self.std = np.mean(X, axis=0)
+        X_normalized = self.normalize(X)
         y_encoded = self.encode_y(y)
-        grad = self.compute_gradient(X, y_encoded)
+        grad = self.compute_gradient(X_normalized, y_encoded)
         num_iters = 0
         while(np.linalg.norm(grad) > epsilon and num_iters < max_iters):
+            print(self.compute_F1(X, y)[1])
             self.w = self.w - learning_rate*grad
-            grad = self.compute_gradient(X, y_encoded)
+            grad = self.compute_gradient(X_normalized, y_encoded)
             num_iters += 1
     
     def predict(self, X):
-        y_probs =  self.softmax(X @ self.w)
+        X_normalized = self.normalize(X)
+        y_probs =  self.softmax(X_normalized @ self.w)
         y_hat = np.argmax(y_probs, axis=1) + 1
         return y_hat
+    
+    def normalize(self, X: np.ndarray, add_bias: bool = True):
+        X_normalized = (X - self.mean) / self.std
+        if add_bias:
+            X_normalized = np.column_stack((X_normalized, np.ones((X_normalized.shape[0], 1))))
+        return X_normalized
 
-def normalize(X: np.ndarray):
-    mean = np.mean(X, axis=0)
-    std = np.std(X, axis=0)
-    return (X - mean) / (std)
-
-def add_bias(X: np.ndarray):
-    return np.column_stack((X, np.ones((X.shape[0], 1))))
 
 if __name__=="__main__":
     from ucimlrepo import fetch_ucirepo 
@@ -78,11 +84,9 @@ if __name__=="__main__":
     y = wine.data.targets.to_numpy()
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
-    logistic_reg = LogisticRegression(X.shape[1] + 1, 3)
-    X_train = add_bias(normalize(X_train))
+    logistic_reg = LogisticRegression(X.shape[1], 3)
     logistic_reg.fit(X_train, y_train)
 
-    X_test = add_bias(normalize(X_test))
     y_hat_test = logistic_reg.predict(X_test)
     y_comp = np.column_stack((y_test, y_hat_test))
     test_y_diff = pd.DataFrame(y_comp, columns=["Y", "Y_hat"])
