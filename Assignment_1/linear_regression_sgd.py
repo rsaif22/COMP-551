@@ -24,6 +24,7 @@ class LinearRegressionSGD:
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
             batch_size: int = 15, max_iters = 1e4):
         # Data already shuffled
+        self.w = np.zeros(self.w.shape)
         self.error_array = np.empty((0,))
         self.mean = np.mean(X, axis=0)
         self.std = np.std(X, axis=0)
@@ -37,7 +38,7 @@ class LinearRegressionSGD:
             #print(self.compute_error(X, y))
             self.error_array = np.append(self.error_array, self.compute_error(X, y))
             self.w = self.w - learning_rate * grad
-            current_batch = np.random.choice(all_indices, batch_size)
+            current_batch = np.random.choice(all_indices, batch_size, replace=False)
             grad = self.compute_gradient(X_normalized[current_batch, :], y[current_batch])
             num_iters += 1
 

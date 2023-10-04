@@ -56,6 +56,8 @@ class LogisticRegressionSGD:
             
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
             batch_size:int = 10, max_iters:int = 1e3):
+        self.w = np.zeros(self.w.shape)
+        self.f1_list = np.empty((3, 0))
         self.mean = np.mean(X, axis=0)
         self.std = np.std(X, axis=0)
         X_normalized = self.normalize(X)
@@ -67,7 +69,7 @@ class LogisticRegressionSGD:
         while(np.linalg.norm(grad) > epsilon and num_iters < max_iters):
             self.f1_list = np.column_stack((self.f1_list, self.compute_F1(X, y)))
             self.w = self.w - learning_rate*grad
-            current_batch = np.random.choice(all_indices, batch_size)
+            current_batch = np.random.choice(all_indices, batch_size, replace=False)
             grad = self.compute_gradient(X_normalized[current_batch, :], y_encoded[current_batch, :])
             num_iters += 1
     

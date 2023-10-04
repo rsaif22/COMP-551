@@ -50,6 +50,7 @@ class LogisticRegression:
             
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
             max_iters:int = 1e3):
+        self.w = np.zeros(self.w.shape) # column for each class
         self.f1_list = np.empty((3, 0))
         self.mean = np.mean(X, axis=0)
         self.std = np.mean(X, axis=0)
