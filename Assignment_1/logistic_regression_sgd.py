@@ -8,6 +8,7 @@ class LogisticRegressionSGD:
         self.mean = np.zeros((D, 1))
         self.std = np.zeros((D, 1))
         self.num_classes = num_classes
+        self.f1_list = np.empty((3, 1))
     
     def softmax(self, z:np.ndarray):
         softmax_matrix = np.zeros(z.shape)
@@ -27,9 +28,10 @@ class LogisticRegressionSGD:
             true_positives = np.sum((y_true==1) & (y_hat_true==1))
             false_positives = np.sum((y_true==0) & (y_hat_true==1))
             false_negatives = np.sum((y_true==1) & (y_hat_true==0))
-            precision = true_positives / (true_positives + false_positives)
-            recall = true_positives / (true_positives + false_negatives)
-            F1 = (2 * precision * recall) / (precision + recall)
+            epsilon = 1e-8
+            precision = float(true_positives) / float(true_positives + false_positives + epsilon)
+            recall = float(true_positives) / float(true_positives + false_negatives + epsilon)
+            F1 = (2 * precision * recall) / (precision + recall + epsilon)
             J[i] = F1
         return J
 
@@ -53,7 +55,7 @@ class LogisticRegressionSGD:
         return encoded_y
             
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
-            batch_size:int = 10, max_iters:int = 1e2):
+            batch_size:int = 10, max_iters:int = 1e3):
         self.mean = np.mean(X, axis=0)
         self.std = np.std(X, axis=0)
         X_normalized = self.normalize(X)
@@ -63,7 +65,7 @@ class LogisticRegressionSGD:
         grad = self.compute_gradient(X_normalized[current_batch, :], y_encoded[current_batch, :])
         num_iters = 0
         while(np.linalg.norm(grad) > epsilon and num_iters < max_iters):
-            print(np.linalg.norm(self.compute_F1(X, y)))
+            self.f1_list = np.column_stack((self.f1_list, self.compute_F1(X, y)))
             self.w = self.w - learning_rate*grad
             current_batch = np.random.choice(all_indices, batch_size)
             grad = self.compute_gradient(X_normalized[current_batch, :], y_encoded[current_batch, :])

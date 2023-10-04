@@ -22,8 +22,9 @@ class LinearRegressionSGD:
     
 
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.01, epsilon: float = 1e-4,
-            batch_size: int = 15, max_iters = 1e5):
+            batch_size: int = 15, max_iters = 1e4):
         # Data already shuffled
+        self.error_array = np.empty((0,))
         self.mean = np.mean(X, axis=0)
         self.std = np.std(X, axis=0)
         X_normalized = self.normalize(X)
