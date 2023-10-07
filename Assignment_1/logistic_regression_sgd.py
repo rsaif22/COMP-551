@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import time
 
 class LogisticRegressionSGD:
     def __init__(self, D: int, num_classes: int):
@@ -9,6 +9,7 @@ class LogisticRegressionSGD:
         self.std = np.zeros((D, 1))
         self.num_classes = num_classes
         self.f1_list = np.empty((3, 1))
+        self.time_list = np.empty((0,))
     
     def softmax(self, z:np.ndarray):
         softmax_matrix = np.zeros(z.shape)
@@ -58,6 +59,7 @@ class LogisticRegressionSGD:
             batch_size:int = 10, max_iters:int = 1e3):
         self.w = np.zeros(self.w.shape)
         self.f1_list = np.empty((3, 0))
+        self.time_list = np.empty((0,))
         self.mean = np.mean(X, axis=0)
         self.std = np.std(X, axis=0)
         X_normalized = self.normalize(X)
@@ -66,8 +68,11 @@ class LogisticRegressionSGD:
         current_batch = np.random.choice(all_indices, batch_size)
         grad = self.compute_gradient(X_normalized[current_batch, :], y_encoded[current_batch, :])
         num_iters = 0
+        time_start = time.time()
         while(np.linalg.norm(grad) > epsilon and num_iters < max_iters):
             self.f1_list = np.column_stack((self.f1_list, self.compute_F1(X, y)))
+            time_from_start = time.time() - time_start
+            self.time_list = np.append(self.time_list, time_from_start)
             self.w = self.w - learning_rate*grad
             current_batch = np.random.choice(all_indices, batch_size, replace=False)
             grad = self.compute_gradient(X_normalized[current_batch, :], y_encoded[current_batch, :])
@@ -86,22 +91,4 @@ class LogisticRegressionSGD:
         return X_normalized
     
 
-if __name__=="__main__":
-    from ucimlrepo import fetch_ucirepo 
-  
-    # fetch dataset 
-    wine = fetch_ucirepo(id=109) 
-    
-    # data (as pandas dataframes) 
-    X = wine.data.features.to_numpy()
-    y = wine.data.targets.to_numpy()
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
-    logistic_reg = LogisticRegressionSGD(X.shape[1], 3)
-    logistic_reg.fit(X_train, y_train)
-
-    y_hat_test = logistic_reg.predict(X_test)
-    y_comp = np.column_stack((y_test, y_hat_test))
-    test_y_diff = pd.DataFrame(y_comp, columns=["Y", "Y_hat"])
-    print(logistic_reg.compute_F1(X_test, y_test))
     
