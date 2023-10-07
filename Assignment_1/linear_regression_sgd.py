@@ -17,6 +17,8 @@ class LinearRegressionSGD:
     
     def compute_error(self, X: np.ndarray, y: np.ndarray)->np.float64:
         y_hat = self.predict(X)
+        y_hat = np.reshape(y_hat, (y_hat.size, 1))
+        y = np.reshape(y, (y.size, 1))
         mean_squared_error = np.mean(0.5 * (y - y_hat) ** 2)
         return mean_squared_error
     
