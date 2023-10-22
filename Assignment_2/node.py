@@ -14,11 +14,13 @@ class Multiply(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray, weights: np.ndarray):
-        assert weights.shape[0] == input.shape[0], "Input dimensions do not match"
+    def forward(self, input: np.ndarray, weights: np.ndarray, add_bias:bool = True):
+        assert weights.shape[0] == (input.shape[1] + 1), "Input dimensions do not match"
         self.input = input
+        if add_bias:
+            self.input = np.append(self.input, np.ones((self.input.shape[0], 1)), axis=1)
         self.weights = weights
-        return self.weights.T @ self.input
+        return self.input @ self.weights
     
     def backward(self, output_grad):
         local_grad_inputs = self.weights 
@@ -51,22 +53,23 @@ class Softmax(Node):
     
     def backward(self, output_true: np.ndarray): # As this is final layer, we only need the true y values
         N = np.size(output_true) # Size of output
-        return 1/N * self.input * (self.output - output_true)
+        return 1/N * self.input.T @ (self.output - output_true) # Gives derivative of loss directly
     
 
 if __name__ == "__main__":
-    X = np.array(([1, 2, 3])).reshape((3, 1))
-    w = np.array(([-1, 0], [-1, -2], [4, 0]))
+    X = np.array(([1, -2], [-3, 4], [5, 6]))
+    # print(X)
+    # w = np.array(([-1], [-2], [-3]))
     # node1 = Multiply()
     # print(node1.forward(X, w))
     # dz = np.array([0, 1]).reshape((2, 1))
     # print(node1.backward(dz))
     node1 = Softmax()
     print(node1.forward(X))
-    true_y = np.array([0.09, 0.2447, 1]).reshape((3, 1))
-    print(node1.backward(true_y))
+    #true_y = np.array([0.09, 0.2447, 1]).reshape((3, 1))
+    # print(node1.backward(true_y))
 
     # node1 = ReLu()
-    # node1.forward(X)
+    # print(node1.forward(X))
     # dz = np.ones(X.shape)
     # print(node1.backward(dz))
