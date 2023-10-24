@@ -50,18 +50,32 @@ class MLP:
             # For output
             w_out = np.random.uniform(0, 1, (self.hidden_units + 1, self.output_dims))
             self.weights.append(w_out)
+        if self.initialization == "random":
+            np.random.seed(10)
+            w_in = np.random.rand(self.input_dims, self.hidden_units) * 0.01
+            self.weights.append(w_in)
+            w = np.random.rand(self.hidden_units, self.hidden_units) * 0.01
+            for i in range(self.n_hidden - 1):
+                self.weights.append(w)
+            w_out = np.random.rand(self.hidden_units, self.output_dims) * 0.01
+            self.weights.append(w_out)
 
     def init_nodes(self, activation_func: Node):
         # Initialize all weights and activations
         activation = None
         match activation_func:
             case "ReLu":
-                activation = ReLu
+                activation = ReLU
+            case "softmax":
+                activation = Softmax
+            case "logistic":
+                activation = Logistic
         for i in range (len(self.weights)-1):
             self.nodes.append(Multiply())
             self.nodes.append(activation())
         self.nodes.append(Multiply())
-        self.nodes.append(Softmax())
+        #self.nodes.append(Softmax())
+        self.nodes.append(LogisticOutput())
 
     def forward(self, X: np.ndarray):
         # Predict
@@ -84,7 +98,7 @@ class MLP:
             if type(node) == Multiply:
                 d_out, weight_grad = node.backward(d_out)
                 weight_grads.append(weight_grad)
-            elif type(node) == ReLu:
+            else:
                 d_out = node.backward(d_out)
         weight_grads.reverse() # Flip to get right order
         return weight_grads
@@ -121,6 +135,9 @@ class MLP:
             weight_grads = self.compute_gradients(y_encoded[current_batch, :])
             num_iters += 1
         print("Finished")
+
+    # def evaluate_acc(self, y_true: np.ndarray, y_hat: np.ndarray):
+
 
     
 if __name__=="__main__":
