@@ -118,6 +118,7 @@ class MLP:
         # self.time_list = np.empty((0,))
         #y_encoded = self.encode_y(y)
         y_encoded = self.encode_y(y)
+        #y_encoded = y
         all_indices = np.arange(y_encoded.shape[0])
         current_batch = np.random.choice(all_indices, batch_size)
         # forward pass

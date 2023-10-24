@@ -101,19 +101,28 @@ class Softmax(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray):
+    def forward(self, input: np.ndarray, epsilon: float = 1e-8):
         self.input = input 
         input_shifted = input.copy()
         max_values = np.max(input, 1).reshape((input.shape[0], 1))
         input_shifted -= max_values
         input_exp = np.exp(input_shifted)
-        exp_sum = np.sum(input_exp, axis=1).reshape((input_exp.shape[0], 1))
+        exp_sum = np.sum(input_exp, axis=1).reshape((input_exp.shape[0], 1)) + epsilon
         self.output = input_exp / exp_sum # Store this as we will use this in gradient
         return self.output 
     
     def backward(self, output_true: np.ndarray): # As this is final layer, we only need the true y values
         N = np.size(output_true) # Size of output
-        return 1/N * self.input * (self.output - output_true) # Gives derivative of loss directly
+        return 1/N * (self.output - output_true) # Gives derivative of loss directly
+    
+class CrossEntropyLoss(Node):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, input: np.ndarray, true_output: np.ndarray):
+        # Input is N X C, true value is N X C
+        self.input = input 
+
     
 
 if __name__ == "__main__":

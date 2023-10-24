@@ -136,8 +136,10 @@ class MLP:
             num_iters += 1
         print("Finished")
 
-    # def evaluate_acc(self, y_true: np.ndarray, y_hat: np.ndarray):
-
+    def evaluate_acc(self, y_true: np.ndarray, X: np.ndarray):
+        y_true_encoded = self.encode_y(y_true)
+        y_hat_encoded = self.forward(X)
+        y_hat_encoded
 
     
 if __name__=="__main__":
