@@ -10,24 +10,6 @@ class Node:
     def backward(self, dz: np.ndarray):
         raise NotImplementedError
 
-# D X 2 features
-# weight: D X 1
-# output: 2 X 1
-# bias: 2 X 1
-class Add(Node):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, input: np.ndarray, bias: np.ndarray):
-        assert bias.shape[0] == input.shape[0], "Bias dimensions do not match input"
-        self.input = input
-        self.bias = bias 
-        return self.input + self.bias
-    
-    def backward(self, output_grad: np.ndarray):
-        # Inputs: N X D, Bias: N X 1, output_grad: N X (D+1) 
-        grad_inputs = output_grad 
-
 class Multiply(Node):
     def __init__(self):
         super().__init__()
@@ -57,6 +39,27 @@ class Multiply(Node):
             input_grad = np.delete(input_grad, -1, axis=1)
         weight_grad = local_grad_weights.T @ output_grad / N
         return input_grad, weight_grad
+    
+class Add:
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, input: np.ndarray, bias: np.ndarray):
+        # Input is N X D dim, bias should be 1 X D dim
+        self.input = input
+        bias = bias.reshape((1, bias.size))
+        self.bias = bias
+        bias = np.broadcast_to(bias, input.shape)
+        return input + bias
+    
+    def backward(self, output_grad: np.ndarray):
+        # output grad should be N X D dimensional
+        local_grad_input = np.ones(output_grad.shape) # N X D
+        local_grad_bias = np.ones(output_grad.shape) # 1 X D
+        N = output_grad.shape[0]
+        grad_input = local_grad_input * output_grad
+        grad_bias = np.mean(local_grad_bias * output_grad, axis=0)
+        return grad_input, grad_bias
     
 class ReLU(Node):
     def __init__(self):
@@ -112,17 +115,7 @@ class Softmax(Node):
         return self.output 
     
     def backward(self, output_true: np.ndarray): # As this is final layer, we only need the true y values
-        N = np.size(output_true) # Size of output
-        return 1/N * (self.output - output_true) # Gives derivative of loss directly
-    
-class CrossEntropyLoss(Node):
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, input: np.ndarray, true_output: np.ndarray):
-        # Input is N X C, true value is N X C
-        self.input = input 
-
+        return self.output - output_true # Gives derivative of loss directly
     
 
 if __name__ == "__main__":
@@ -158,27 +151,40 @@ if __name__ == "__main__":
     x = np.random.randn(4, 3)
     N,D = x.shape
     v = np.random.randn(3, 5)
+    bias1 = np.random.randn(1, 5)
+    bias2 = np.random.randn(1, 1)
     w = np.random.randn(5)
     z = logistic(np.dot(x, v)) #N x M
     log1 = Logistic()
     log2 = LogisticOutput()
     mul1 = Multiply()
+    add1 = Add()
     mul2 = Multiply()
-    z_m = log1.forward(mul1.forward(x, v, False))
+    add2 = Add()
+    # z1 = mul1.forward(x, v, False)
+    # added = add1.forward(z1, bias1)
+    # print(added)
+    m1 = mul1.forward(x, v, False)
+    b1 = add1.forward(m1, bias1)
+    z_m = log1.forward(b1)
     yh = logistic(np.dot(z, w))#N
-    yh_m = log2.forward(mul2.forward(z, w, False))
+    m2 = mul2.forward(z, w, False)
+    #b2 = add2.forward(m2, bias2)
+    yh_m = log2.forward(m2)
     y = np.array([0, 1, 0, 1])
-    # print(yh)
-    # print("--------------")
-    # print(yh_m)
+    print(yh)
+    print("--------------")
+    print(yh_m)
     dy = yh - y #N
     dy_m = log2.backward(y)
+    #db1_m = add2.backward(dy_m)
     dw = np.dot(z.T, dy)/N #M
     dz_m, dw_m = mul2.backward(dy_m)
     dz = np.outer(dy, w) #N x M
     dv = np.dot(x.T, dz * z * (1 - z))/N #D x M
     dlog = dz * z * (1 - z)
     dlog_m = log1.backward(dz_m)
+    dt = add1.backward(dlog_m)
     dx_m, dv_m = mul1.backward(dlog_m)
     print(dv)
     print("--------------")

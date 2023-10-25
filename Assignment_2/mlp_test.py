@@ -14,10 +14,13 @@ class MLP:
         self.num_classes = output_dims
         self.initialization = initialization
         self.weights = []
+        self.biases = []
         self.nodes = []
+        self.acc_list = None # Accuracies for plotting
         if seed is not None:
             np.random.seed(seed)
         self.init_weights()
+        self.init_biases()
         self.init_nodes()
 
     def init_weights(self):
@@ -45,6 +48,21 @@ class MLP:
             w_out = init_func(self.hidden_units, self.output_dims)
             self.weights.append(w_out)
 
+    def init_biases(self):
+        init_func = None
+        match self.initialization:
+            case "zeros":
+                init_func = self.zeros
+            case "ones":
+                init_func = self.ones 
+            case "uniform":
+                init_func = self.uniform 
+            case "randn":
+                init_func = self.randn
+        for weight in self.weights:
+            current_bias = init_func(1, weight.shape[1])
+            self.biases.append(current_bias)
+
     def init_nodes(self):
         activation_func = None 
         match self.activation_func:
@@ -54,8 +72,10 @@ class MLP:
                 activation_func = Logistic
         for i in range(len(self.weights)-1):
             self.nodes.append(Multiply())
+            self.nodes.append(Add())
             self.nodes.append(activation_func())
         self.nodes.append(Multiply())
+        self.nodes.append(Add())
         if self.output_dims == 1:
             self.nodes.append(LogisticOutput())
         else:
@@ -77,10 +97,14 @@ class MLP:
     def forward(self, X: np.ndarray):
         input = X.copy() # Start with initial input
         weight_idx = 0
+        bias_idx = 0
         for node in self.nodes:
             if type(node) == Multiply:
                 input = node.forward(input, self.weights[weight_idx])
                 weight_idx += 1
+            elif type(node) == Add:
+                input = node.forward(input, self.biases[bias_idx])
+                bias_idx += 1
             else:
                 input = node.forward(input)
         return input
@@ -90,16 +114,21 @@ class MLP:
             y = y.reshape(y.size, 1)
         node_idx = len(self.nodes) - 1 # Start from last element
         weight_grads = []
+        bias_grads = []
         output_grad = y 
         for i in range(node_idx, -1, -1):
             node = self.nodes[i]
             if type(node) == Multiply:
                 output_grad, w_grad = node.backward(output_grad)
                 weight_grads.append(w_grad)
+            elif type(node) == Add:
+                output_grad, b_grad = node.backward(output_grad)
+                bias_grads.append(b_grad)
             else:
                 output_grad = node.backward(output_grad)
         weight_grads.reverse()
-        return weight_grads
+        bias_grads.reverse()
+        return weight_grads, bias_grads
     
     def encode_y(self, y: np.ndarray):
         y = np.reshape(y, (y.size, 1))
@@ -116,6 +145,7 @@ class MLP:
     def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.1, epsilon: float = 1e-8, max_iters:int = 1e4, batch_size:int = 10):
         # self.f1_list = np.empty((3, 0))
         # self.time_list = np.empty((0,))
+        self.acc_list = np.empty((0,))
         #y_encoded = self.encode_y(y)
         y_encoded = self.encode_y(y)
         #y_encoded = y
@@ -123,8 +153,10 @@ class MLP:
         current_batch = np.random.choice(all_indices, batch_size)
         # forward pass
         y_hat = self.forward(X[current_batch, :])
+        accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
+        self.acc_list = np.append(self.acc_list, accuracy)
         #weight_grads = self.compute_gradients(y_encoded[current_batch, :])
-        weight_grads = self.backward(y_encoded[current_batch, :])
+        weight_grads, bias_grads = self.backward(y_encoded[current_batch, :])
         num_iters = 0
         # time_start = time.time()
         max_norm = np.inf
@@ -134,15 +166,31 @@ class MLP:
             # self.time_list = np.append(self.time_list, time_from_start)
             for i in range(len(self.weights)):
                 self.weights[i] = self.weights[i] - learning_rate * weight_grads[i]
+                self.biases[i] = self.biases[i] - learning_rate * bias_grads[i]
             y_hat = self.forward(X[current_batch, :])
-            weight_grads = self.backward(y_encoded[current_batch, :])
+            accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
+            self.acc_list = np.append(self.acc_list, accuracy)
+            weight_grads, bias_grads = self.backward(y_encoded[current_batch, :])
             current_batch = np.random.choice(all_indices, batch_size, replace=False)
             num_iters += 1
             max_norm = 0
             for weight_grad in weight_grads:
                 if np.linalg.norm(weight_grad) > max_norm:
                     max_norm = np.linalg.norm(weight_grad)
+            for bias_grad in bias_grads:
+                if np.linalg.norm(bias_grad) > max_norm:
+                    max_norm = np.linalg.norm(bias_grad)
         print(f"Finished in {num_iters}")
+    
+    def predict(self, X: np.ndarray):
+        yh_encoded = self.forward(X)
+        return self.decode_y(yh_encoded)
+    
+    def evaluate_acc(self, y, y_hat):
+        y = y.reshape((y.size, 1))
+        correct_predictions = float(np.sum(y == y_hat))
+        total = float(y.size)
+        return correct_predictions / total
 
 
 from sklearn import datasets
@@ -156,13 +204,15 @@ if __name__=="__main__":
     #print(x.shape)
     # for node in mlp.nodes:
     #     print(type(node))
+    print(mlp.weights[0].shape)
+    print(mlp.biases[0].shape)
     # for node in mlp.nodes_reversed:
     #     print(type(node))
     #mlp.forward(x)
     #mlp.fit(x, y, learning_rate=0.1, max_iters=20000)
     # print(mlp.backward(y)[1])
     #print(mlp.forward(x))
-    y_encoded = np.array(([0, 1, 0], [1, 0, 0.3], [0, 0.4, 0.7]))
-    print(y_encoded)
-    y = mlp.decode_y(y_encoded)
-    print(y)
+    # y_encoded = np.array(([0, 1, 0], [1, 0, 0.3], [0, 0.4, 0.7]))
+    # print(y_encoded)
+    # y = mlp.decode_y(y_encoded)
+    # print(y)
