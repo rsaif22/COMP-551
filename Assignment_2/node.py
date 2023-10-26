@@ -14,20 +14,13 @@ class Multiply(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray, weights: np.ndarray, add_bias:bool = False):
-        if add_bias:
-            assert weights.shape[0] == (input.shape[1] + 1), "Input dimensions do not match"
-        else:
-            assert weights.shape[0] == input.shape[1], "Input dimensions do not match"
+    def forward(self, input: np.ndarray, weights: np.ndarray):
+        assert weights.shape[0] == input.shape[1], "Input dimensions do not match"
         self.input = input
-        self.add_bias = add_bias
-        if add_bias:
-            self.input = np.append(self.input, np.ones((self.input.shape[0], 1)), axis=1)
         self.weights = weights
-        N = weights.shape[0]
         return (self.input @ self.weights)
     
-    def backward(self, output_grad):
+    def backward(self, output_grad, regularization: str = None, lambda_: float = 0.01):
         N = output_grad.shape[0]
         local_grad_inputs = self.weights 
         local_grad_weights = self.input
@@ -35,9 +28,11 @@ class Multiply(Node):
             input_grad = output_grad @ local_grad_inputs.T
         except:
             input_grad = np.outer(output_grad, local_grad_inputs)
-        if self.add_bias:
-            input_grad = np.delete(input_grad, -1, axis=1)
         weight_grad = local_grad_weights.T @ output_grad / N
+        if regularization == "l2":
+            weight_grad += lambda_ * self.weights
+        elif regularization == "l1":
+            weight_grad += lambda_ * np.sign(self.weights)
         return input_grad, weight_grad
     
 class Add:
@@ -52,13 +47,17 @@ class Add:
         bias = np.broadcast_to(bias, input.shape)
         return input + bias
     
-    def backward(self, output_grad: np.ndarray):
+    def backward(self, output_grad: np.ndarray, regularization: str = None, lambda_: float = 0.01):
         # output grad should be N X D dimensional
         local_grad_input = np.ones(output_grad.shape) # N X D
         local_grad_bias = np.ones(output_grad.shape) # 1 X D
         N = output_grad.shape[0]
         grad_input = local_grad_input * output_grad
         grad_bias = np.mean(local_grad_bias * output_grad, axis=0)
+        if regularization == "l2":
+            grad_bias += lambda_ * self.bias.reshape((grad_bias.shape))
+        elif regularization == "l1":
+            grad_bias += lambda_ * np.sign(self.bias.reshape((grad_bias.shape)))
         return grad_input, grad_bias
     
 class ReLU(Node):
@@ -72,6 +71,22 @@ class ReLU(Node):
     def backward(self, output_grad: np.ndarray):
         local_grad = np.ones(self.input.shape) # Derivative of x
         local_grad[self.input < 0] = 0
+        return local_grad * output_grad
+    
+class LeakyReLU(Node):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, input: np.ndarray, gamma: float = 0.05):
+        self.input = input # Store for backward pass
+        self.gamma = gamma
+        output = np.maximum(self.input, np.zeros(self.input.shape)) + \
+                gamma * np.minimum(self.input, np.zeros(self.input.shape))
+        return output
+    
+    def backward(self, output_grad: np.ndarray):
+        local_grad = np.ones(self.input.shape) # Derivative of x
+        local_grad[self.input < 0] = self.gamma
         return local_grad * output_grad
     
 class LogisticOutput(Node):
@@ -98,8 +113,20 @@ class Logistic(Node):
     def backward(self, output_grad: np.ndarray):
         local_grad = self.output * (1 - self.output)
         return output_grad * local_grad
-
     
+class Tanh(Node):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, input: np.ndarray):
+        self.input = input
+        self.output = np.tanh(input)
+        return self.output
+    
+    def backward(self, output_grad: np.ndarray):
+        local_grad = 1 - self.output ** 2
+        return output_grad * local_grad
+
 class Softmax(Node):
     def __init__(self):
         super().__init__()
