@@ -17,6 +17,7 @@ class MLP:
         self.biases = []
         self.nodes = []
         self.acc_list = None # Accuracies for plotting
+        self.test_acc_list = None # Test accuracies for plotting
         self.weight_norms = None # Weight norms for plotting
         if seed is not None:
             np.random.seed(seed)
@@ -105,19 +106,19 @@ class MLP:
         std = np.sqrt(2 / rows)
         return np.random.normal(0, std, (rows, cols))
         
-    def forward(self, X: np.ndarray):
+    def forward(self, X: np.ndarray, is_training: bool = False):
         input = X.copy() # Start with initial input
         weight_idx = 0
         bias_idx = 0
         for node in self.nodes:
             if type(node) == Multiply:
-                input = node.forward(input, self.weights[weight_idx])
+                input = node.forward(input, self.weights[weight_idx], is_training)
                 weight_idx += 1
             elif type(node) == Add:
-                input = node.forward(input, self.biases[bias_idx])
+                input = node.forward(input, self.biases[bias_idx], is_training)
                 bias_idx += 1
             else:
-                input = node.forward(input)
+                input = node.forward(input, is_training)
         return input
 
     def backward(self, y: np.ndarray, regularization: str = None, lambda_: float = 0.01):
@@ -153,16 +154,27 @@ class MLP:
         y_decoded = np.argmax(y_encoded, axis=1).reshape((y_encoded.shape[0], 1))
         return y_decoded
     
-    def fit(self, X: np.ndarray, y: np.ndarray, learning_rate: float = 0.1, epsilon: float = 1e-8, max_iters:int = 1e4, batch_size:int = 10, regularization: str = None, lambda_: float = 0.1):
+    def fit(self, X: np.ndarray, y: np.ndarray, X_test: np.ndarray, y_test: np.ndarray, 
+            learning_rate: float = 0.1, epsilon: float = 1e-8, max_iters:int = 1e4, 
+            batch_size:int = 10, regularization: str = None, lambda_: float = 0.1):
         self.acc_list = np.empty((0,))
+        self.test_acc_list = np.empty((0,))
         self.weight_norms = np.empty((0,))
+        y_test = y_test.reshape((y_test.size, 1))
         y_encoded = self.encode_y(y)
         all_indices = np.arange(y_encoded.shape[0])
+        all_test_indices = np.arange(y_test.shape[0])
         current_batch = np.random.choice(all_indices, batch_size)
-        # forward pass
-        y_hat = self.forward(X[current_batch, :])
+        current_test_batch = np.random.choice(all_test_indices, batch_size)
+
+        # Initial forward pass
+        y_hat = self.forward(X[current_batch, :], is_training=True)
         accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
+        y_hat_test = self.predict(X_test[current_test_batch, :])
+        test_accuracy = self.evaluate_acc(y_test[current_test_batch], y_hat_test)
         self.acc_list = np.append(self.acc_list, accuracy)
+        self.test_acc_list = np.append(self.test_acc_list, test_accuracy)
+
         weight_grads, bias_grads = self.backward(y_encoded[current_batch, :], regularization, lambda_)
         num_iters = 0
         max_norm = np.inf
@@ -179,11 +191,17 @@ class MLP:
                 weight_norm += np.linalg.norm(self.weights[i])
                 weight_norm += np.linalg.norm(self.biases[i])
             self.weight_norms = np.append(self.weight_norms, weight_norm)
-            y_hat = self.forward(X[current_batch, :])
+
+            # Forward pass for training
+            y_hat = self.forward(X[current_batch, :], is_training=True)
             accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
+            y_hat_test = self.predict(X_test[current_test_batch, :])
+            test_accuracy = self.evaluate_acc(y_test[current_test_batch], y_hat_test)
             self.acc_list = np.append(self.acc_list, accuracy)
+            self.test_acc_list = np.append(self.test_acc_list, test_accuracy)
             weight_grads, bias_grads = self.backward(y_encoded[current_batch, :], regularization, lambda_)
             current_batch = np.random.choice(all_indices, batch_size, replace=False)
+            current_test_batch = np.random.choice(all_test_indices, batch_size, replace=False)
             num_iters += 1
         print(f"Finished in {num_iters}")
     

@@ -14,11 +14,12 @@ class Multiply(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray, weights: np.ndarray):
+    def forward(self, input: np.ndarray, weights: np.ndarray, is_training: bool = False):
         assert weights.shape[0] == input.shape[1], "Input dimensions do not match"
-        self.input = input
-        self.weights = weights
-        return (self.input @ self.weights)
+        if is_training:
+            self.input = input
+            self.weights = weights
+        return (input @ weights)
     
     def backward(self, output_grad, regularization: str = None, lambda_: float = 0.01):
         N = output_grad.shape[0]
@@ -39,11 +40,12 @@ class Add:
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray, bias: np.ndarray):
+    def forward(self, input: np.ndarray, bias: np.ndarray, is_training: bool = False):
         # Input is N X D dim, bias should be 1 X D dim
-        self.input = input
         bias = bias.reshape((1, bias.size))
-        self.bias = bias
+        if is_training:
+            self.input = input
+            self.bias = bias
         bias = np.broadcast_to(bias, input.shape)
         return input + bias
     
@@ -64,9 +66,10 @@ class ReLU(Node):
     def __init__(self):
         super().__init__()
     
-    def forward(self, input: np.ndarray):
-        self.input = input # Store for backward pass
-        return np.maximum(self.input, np.zeros(self.input.shape))
+    def forward(self, input: np.ndarray, is_training: bool = False):
+        if is_training:
+            self.input = input # Store for backward pass
+        return np.maximum(input, np.zeros(input.shape))
     
     def backward(self, output_grad: np.ndarray):
         local_grad = np.ones(self.input.shape) # Derivative of x
@@ -77,11 +80,12 @@ class LeakyReLU(Node):
     def __init__(self):
         super().__init__()
     
-    def forward(self, input: np.ndarray, gamma: float = 0.05):
-        self.input = input # Store for backward pass
-        self.gamma = gamma
-        output = np.maximum(self.input, np.zeros(self.input.shape)) + \
-                gamma * np.minimum(self.input, np.zeros(self.input.shape))
+    def forward(self, input: np.ndarray, is_training: bool = False, gamma: float = 0.05):
+        if is_training:
+            self.input = input # Store for backward pass
+            self.gamma = gamma
+        output = np.maximum(input, np.zeros(input.shape)) + \
+                gamma * np.minimum(input, np.zeros(input.shape))
         return output
     
     def backward(self, output_grad: np.ndarray):
@@ -93,10 +97,12 @@ class LogisticOutput(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray):
-        self.input = input
-        self.output = 1 / (1 + np.exp(-input))
-        return self.output
+    def forward(self, input: np.ndarray, is_training: bool = False):
+        output = 1 / (1 + np.exp(-input))
+        if is_training:
+            self.input = input
+            self.output = output
+        return output
     
     def backward(self, output_true: np.ndarray):
         return self.output - output_true
@@ -105,10 +111,12 @@ class Logistic(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray):
-        self.input = input
-        self.output = 1 / (1 + np.exp(-input))
-        return self.output
+    def forward(self, input: np.ndarray, is_training: bool = False):
+        output = 1 / (1 + np.exp(-input))
+        if is_training:
+            self.input = input
+            self.output = output
+        return output
     
     def backward(self, output_grad: np.ndarray):
         local_grad = self.output * (1 - self.output)
@@ -118,10 +126,12 @@ class Tanh(Node):
     def __init__(self):
         super().__init__()
     
-    def forward(self, input: np.ndarray):
-        self.input = input
-        self.output = np.tanh(input)
-        return self.output
+    def forward(self, input: np.ndarray, is_training: bool = False):
+        output = np.tanh(input)
+        if is_training:
+            self.input = input
+            self.output = output
+        return output
     
     def backward(self, output_grad: np.ndarray):
         local_grad = 1 - self.output ** 2
@@ -131,15 +141,17 @@ class Softmax(Node):
     def __init__(self):
         super().__init__()
 
-    def forward(self, input: np.ndarray, epsilon: float = 1e-8):
-        self.input = input 
-        input_shifted = input.copy()
+    def forward(self, input: np.ndarray, is_training: bool = False, epsilon: float = 1e-8):
+        input_shifted = input.copy() # To avoid modifying original input
         max_values = np.max(input, 1).reshape((input.shape[0], 1))
-        input_shifted -= max_values
+        input_shifted -= max_values # To avoid overflow
         input_exp = np.exp(input_shifted)
         exp_sum = np.sum(input_exp, axis=1).reshape((input_exp.shape[0], 1)) + epsilon
-        self.output = input_exp / exp_sum # Store this as we will use this in gradient
-        return self.output 
+        output = input_exp / exp_sum
+        if is_training:
+            self.input = input
+            self.output = output
+        return output 
     
     def backward(self, output_true: np.ndarray): # As this is final layer, we only need the true y values
         return self.output - output_true # Gives derivative of loss directly
