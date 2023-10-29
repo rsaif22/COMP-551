@@ -154,6 +154,21 @@ class MLP:
         y_decoded = np.argmax(y_encoded, axis=1).reshape((y_encoded.shape[0], 1))
         return y_decoded
     
+    def evaluate_model(self, X_train: np.ndarray, y_train: np.ndarray, X_test: np.ndarray, y_test: np.ndarray):
+        y_train = y_train.reshape((y_train.size, 1))
+        y_test = y_test.reshape((y_test.size, 1))
+        yh_train = self.predict(X_train)
+        yh_test = self.predict(X_test)
+        train_accuracy = self.evaluate_acc(y_train, yh_train)
+        test_accuracy = self.evaluate_acc(y_test, yh_test)
+        self.acc_list = np.append(self.acc_list, train_accuracy)
+        self.test_acc_list = np.append(self.test_acc_list, test_accuracy)
+        weight_norm = 0
+        for i in range(len(self.weights)):
+            weight_norm += np.linalg.norm(self.weights[i])
+            weight_norm += np.linalg.norm(self.biases[i])
+        self.weight_norms = np.append(self.weight_norms, weight_norm)
+    
     def fit(self, X: np.ndarray, y: np.ndarray, X_test: np.ndarray, y_test: np.ndarray, 
             learning_rate: float = 0.1, epsilon: float = 1e-8, max_iters:int = 1e4, 
             batch_size:int = 10, regularization: str = None, lambda_: float = 0.1):
@@ -163,24 +178,20 @@ class MLP:
         y_test = y_test.reshape((y_test.size, 1))
         y_encoded = self.encode_y(y)
         all_indices = np.arange(y_encoded.shape[0])
-        all_test_indices = np.arange(y_test.shape[0])
+        # all_test_indices = np.arange(y_test.shape[0])
         current_batch = np.random.choice(all_indices, batch_size)
-        current_test_batch = np.random.choice(all_test_indices, batch_size)
+        # current_test_batch = np.random.choice(all_test_indices, batch_size)
+        iters_per_epoch = int(np.ceil(y_encoded.shape[0] / batch_size))
 
         # Initial forward pass
-        y_hat = self.forward(X[current_batch, :], is_training=True)
-        accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
-        y_hat_test = self.predict(X_test[current_test_batch, :])
-        test_accuracy = self.evaluate_acc(y_test[current_test_batch], y_hat_test)
-        self.acc_list = np.append(self.acc_list, accuracy)
-        self.test_acc_list = np.append(self.test_acc_list, test_accuracy)
+        self.forward(X[current_batch, :], is_training=True)
+        self.evaluate_model(X, y, X_test, y_test) # Evaluate model before training
 
         weight_grads, bias_grads = self.backward(y_encoded[current_batch, :], regularization, lambda_)
         num_iters = 0
         max_norm = np.inf
         while(num_iters < max_iters and max_norm > epsilon):
             max_norm = 0
-            weight_norm = 0
             for i in range(len(self.weights)):
                 self.weights[i] = self.weights[i] - learning_rate * weight_grads[i]
                 self.biases[i] = self.biases[i] - learning_rate * bias_grads[i]
@@ -188,21 +199,15 @@ class MLP:
                     max_norm = np.linalg.norm(weight_grads[i])
                 if np.linalg.norm(bias_grads[i]) > max_norm:
                     max_norm = np.linalg.norm(bias_grads[i])
-                weight_norm += np.linalg.norm(self.weights[i])
-                weight_norm += np.linalg.norm(self.biases[i])
-            self.weight_norms = np.append(self.weight_norms, weight_norm)
 
             # Forward pass for training
-            y_hat = self.forward(X[current_batch, :], is_training=True)
-            accuracy = self.evaluate_acc(y[current_batch], self.decode_y(y_hat))
-            y_hat_test = self.predict(X_test[current_test_batch, :])
-            test_accuracy = self.evaluate_acc(y_test[current_test_batch], y_hat_test)
-            self.acc_list = np.append(self.acc_list, accuracy)
-            self.test_acc_list = np.append(self.test_acc_list, test_accuracy)
+            self.forward(X[current_batch, :], is_training=True)
             weight_grads, bias_grads = self.backward(y_encoded[current_batch, :], regularization, lambda_)
             current_batch = np.random.choice(all_indices, batch_size, replace=False)
-            current_test_batch = np.random.choice(all_test_indices, batch_size, replace=False)
             num_iters += 1
+            if num_iters % iters_per_epoch == 0:
+                print(f"Finished epoch {num_iters // iters_per_epoch}")
+                self.evaluate_model(X, y, X_test, y_test)
         print(f"Finished in {num_iters}")
     
     def predict(self, X: np.ndarray):
