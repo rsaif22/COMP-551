@@ -9,6 +9,7 @@ class NaiveBayes:
         self.inv_count_matrix = None # To store when certain word is not present in a class
         self.words_per_class = None
         self.class_proportions = None # Prior probabilities of each class
+        self.alpha = 1 # Laplace smoothing 
         
     def find_instances(self, X_i: np.ndarray):
         instances = np.zeros((self.vocab_size, 1))
@@ -52,8 +53,8 @@ class NaiveBayes:
         probabilities = np.zeros((X.shape[0], self.num_classes))
         X_absent = X == 0
         for i in range(X.shape[0]):
-            log_probs_present = np.sum(np.log((1+self.count_matrix)/(self.vocab_size+self.words_per_class)) * X[i, :], axis=1) # Power of X is multiplied after log
-            log_probs_absent = np.sum(np.log(1-(1+self.count_matrix)/(self.vocab_size+self.words_per_class)) * X_absent[i, :], axis=1)
+            log_probs_present = np.sum(np.log((self.alpha+self.count_matrix)/(self.alpha*self.vocab_size+self.words_per_class)) * X[i, :], axis=1) # Power of X is multiplied after log
+            log_probs_absent = np.sum(np.log(1-(self.alpha+self.count_matrix)/(self.alpha*self.vocab_size+self.words_per_class)) * X_absent[i, :], axis=1)
             log_probs = log_probs_present + log_probs_absent + np.log(self.class_proportions).reshape(log_probs_present.shape)
             probs = np.exp(log_probs - np.max(log_probs))
             probs = probs / np.sum(probs)
