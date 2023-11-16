@@ -66,11 +66,41 @@ class NaiveBayes:
         predictions = np.argmax(probabilities, axis=1)
         return predictions
     
-    def evaluate_acc(self, X: np.ndarray, y: np.ndarray):
-        predictions = self.predict(X).reshape((y.shape))
-        accuracy = np.sum(predictions == y) / y.shape[0]
+    def evaluate_acc(self, y_hat: np.ndarray, y: np.ndarray):
+        # predictions = self.predict(X).reshape((y.shape))
+        y_hat = y_hat.reshape((y.shape))
+        accuracy = np.sum( y_hat == y) / y.shape[0]
         return accuracy
-
+    
+    def encode_y(self, y: np.ndarray):
+        y = y.reshape(-1, 1)
+        y_encoded = np.zeros((len(y), self.num_classes))
+        for i in range(self.num_classes):
+            y_encoded[:, i] = (y == i).reshape(-1)
+        return y_encoded
+    
+    def compute_F1(self, y_hat, y):
+        y_encoded = self.encode_y(y)
+        y_hat_encoded = self.encode_y(y_hat)
+        J = np.zeros((y_encoded.shape[1], 1))
+        P = np.zeros((y_encoded.shape[1], 1)) # Precision
+        R = np.zeros((y_encoded.shape[1], 1)) # Recall
+        for i in range(y_encoded.shape[1]):
+            y_column = y_encoded[:, i]
+            y_hat_column = y_hat_encoded[:, i]
+            y_true = y_column == 1
+            y_hat_true = y_hat_column==1
+            true_positives = np.sum((y_true==1) & (y_hat_true==1))
+            false_positives = np.sum((y_true==0) & (y_hat_true==1))
+            false_negatives = np.sum((y_true==1) & (y_hat_true==0))
+            epsilon = 1e-8
+            precision = float(true_positives) / float(true_positives + false_positives + epsilon)
+            recall = float(true_positives) / float(true_positives + false_negatives + epsilon)
+            F1 = (2 * precision * recall) / (precision + recall + epsilon)
+            J[i] = F1
+            P[i] = precision
+            R[i] = recall
+        return J, P, R
 
 
         
