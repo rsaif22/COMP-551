@@ -28,10 +28,11 @@ class NeuralNetwork(nn.Module):
             _, predicted = torch.max(output.data, 1)
         return predicted
     
-    def fit(self, x, y, learning_rate=0.001, epochs=5, batch_size=32):
+    def fit(self, x, y, x_test, y_test, learning_rate=0.001, epochs=5, batch_size=32):
         criterion = nn.CrossEntropyLoss()
         opt_params = self.parameters()
-        optimizer = torch.optim.Adam(params=opt_params, lr=learning_rate)
+        # optimizer = torch.optim.Adam(params=opt_params, lr=learning_rate)
+        optimizer = torch.optim.SGD(params=opt_params, lr=learning_rate, momentum=0.9)
         self.train()
         dataset = TensorDataset(x, y)
 
@@ -41,17 +42,27 @@ class NeuralNetwork(nn.Module):
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         for epoch in range(epochs):
             # Select random samples
+            self.train()
             for batch in dataloader:
                 current_x, current_y = batch
                 optimizer.zero_grad()
                 outputs = self.forward(current_x)
                 loss = criterion(outputs, current_y)
-                if (loss.item() < best_loss):
-                    best_loss = loss.item()
-                    best_model = copy.deepcopy(self)
+                # if (loss.item() < best_loss):
+                #     best_loss = loss.item()
+                #     best_model = copy.deepcopy(self)
                 loss.backward()
                 optimizer.step()
-                print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
+                # print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}')
+            self.eval()
+            y_pred = self.predict(x_test)
+            with torch.no_grad():
+                test_loss = criterion(self.forward(x_test), y_test)
+                if (test_loss.item() < best_loss):
+                    best_loss = test_loss.item()
+                    best_model = copy.deepcopy(self)
+            acc = (y_pred == y_test).float().mean()
+            print(f"Epoch [{epoch+1}/{epochs}], Loss: {test_loss.item():.4f}, Accuracy: {acc.item():.4f}")
         return best_model
 
 

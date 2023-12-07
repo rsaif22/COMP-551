@@ -29,7 +29,7 @@ class NeuralNetwork(nn.Module):
         return predicted
     
     def fit(self, x, y, learning_rate=0.001, epochs=5, batch_size=32):
-        criterion = nn.CrossEntropyLoss()
+        loss = nn.CrossEntropyLoss()
         opt_params = self.parameters()
         optimizer = torch.optim.Adam(params=opt_params, lr=learning_rate)
         self.train()
@@ -45,7 +45,7 @@ class NeuralNetwork(nn.Module):
                 current_x, current_y = batch
                 optimizer.zero_grad()
                 outputs = self.forward(current_x)
-                loss = criterion(outputs, current_y)
+                loss = loss(outputs, current_y)
                 if (loss.item() < best_loss):
                     best_loss = loss.item()
                     best_model = copy.deepcopy(self)
