@@ -39,9 +39,17 @@ def encode_column(column):
 #TODO: add seed for torch.manualseed(0)
 #TODO: add unimportant features
 
-def build_test_DNDT(datafile, output_column_name, num_classes, num_features):
+
+def build_test_DNDT(datafile, output_column_name, num_classes, num_features, num_cuts, seed=None, exclude_features=[]):
+    # Set the random seed for PyTorch
+    if seed is not None:
+        torch.manual_seed(seed)
+
     # Read the CSV file with headers
     df = pd.read_csv(datafile)
+
+    # Remove unimportant features
+    df = df.drop(columns=exclude_features)
 
     # Encode categorical columns
     df = df.apply(encode_column)
@@ -65,7 +73,7 @@ def build_test_DNDT(datafile, output_column_name, num_classes, num_features):
     # Convert to PyTorch tensors
     x_tensor = torch.tensor(X, dtype=torch.float32)
     y_tensor = torch.tensor(y_one_hot, dtype=torch.float32)
-    num_cut = [1]*num_features  
+    num_cut = [1]*num_cuts #num_features  
     num_leaf = np.prod(np.array(num_cut) + 1)
     d = X.shape[1]
     #print(X.shape, y.shape, d, num_cut, num_leaf, num_classes)
@@ -86,19 +94,14 @@ def build_test_DNDT(datafile, output_column_name, num_classes, num_features):
         loss = loss_fn(y_pred, y_tensor)
         loss.backward()
         optimizer.step()
-
-        if i % 200 == 0:
-            print(loss.item())
     
     # Evaluate
     with torch.no_grad():
         y_pred_eval = nn_decision_tree(x_tensor, cut_points_list, leaf_score, temperature=0.1)
         error_rate = 1 - (y_pred_eval.argmax(1) == y_tensor.argmax(1)).float().mean()
-        print('error rate %.2f' % error_rate)
+
 
     y_pred = nn_decision_tree(x_tensor, cut_points_list, leaf_score, temperature=0.1)
     accuracy_score(y_tensor.argmax(1), y_pred.argmax(1))
-    print(accuracy_score(y_tensor.argmax(1), y_pred.argmax(1)))
+    #print(accuracy_score(y_tensor.argmax(1), y_pred.argmax(1)))
     return accuracy_score(y_tensor.argmax(1), y_pred.argmax(1))
-
-
