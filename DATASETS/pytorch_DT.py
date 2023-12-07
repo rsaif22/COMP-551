@@ -6,6 +6,13 @@ from sklearn import tree
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+
+def normalize_dataframe_min_max(df):
+    scaler = MinMaxScaler()
+    df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
+    return df_normalized
+
 
 # Define a simple label encoder function
 def encode_column(column):
@@ -13,18 +20,21 @@ def encode_column(column):
         column = column.astype('category').cat.codes
     return column
 
-def build_test_DT(datafile, output_column_name, num_classes, num_features, seed=None, exclude_features=[]):
+def build_test_DT(datafile, output_column_name, seed=None, exclude_features=[]):
     # Set the random seed
     np.random.seed(seed)
 
     # Read the CSV file with headers
     df = pd.read_csv(datafile)
 
+
     # Remove unimportant features
     df = df.drop(columns=exclude_features)
 
     # Encode categorical columns
     df = df.apply(encode_column)
+
+    df = normalize_dataframe_min_max(df) #testing idea
 
     # Extract features and target variable
     feature_columns = df.columns.difference([output_column_name])

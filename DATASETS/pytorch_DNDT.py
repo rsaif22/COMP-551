@@ -9,6 +9,13 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import MinMaxScaler
+
+def normalize_dataframe_min_max(df):
+    scaler = MinMaxScaler()
+    df_normalized = pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
+    return df_normalized
+
 
 #from paper: https://arxiv.org/pdf/1909.06312.pdf
 def torch_kron_prod(a, b):
@@ -40,7 +47,7 @@ def encode_column(column):
 #TODO: add unimportant features
 
 
-def build_test_DNDT(datafile, output_column_name, num_classes, num_features, num_cuts, seed=None, exclude_features=[]):
+def build_test_DNDT(datafile, output_column_name, num_features, num_cuts, seed=None, exclude_features=[]):
     # Set the random seed for PyTorch
     if seed is not None:
         torch.manual_seed(seed)
@@ -48,16 +55,20 @@ def build_test_DNDT(datafile, output_column_name, num_classes, num_features, num
     # Read the CSV file with headers
     df = pd.read_csv(datafile)
 
+    
+
     # Remove unimportant features
     df = df.drop(columns=exclude_features)
 
     # Encode categorical columns
     df = df.apply(encode_column)
 
+    df = normalize_dataframe_min_max(df) #testing idea
+
     # Extract features and target variable
     feature_columns = df.columns.difference([output_column_name])
     X = df[feature_columns].to_numpy()
-    y = df[output_column_name]
+    y = df[output_column_name].to_numpy()
 
     # Convert the species labels to integers
     species_to_int = {species: idx for idx, species in enumerate(np.unique(y))}
