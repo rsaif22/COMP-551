@@ -49,9 +49,9 @@ def encode_column(column):
 #TODO: add unimportant features
 
 
-def build_test_DNDT(datafile, output_column_name, num_features, num_cuts, seed=None, exclude_features=[], normalized=False, test_train_split=False):
+def build_test_DNDT(datafile, output_column_name, num_features, num_cuts, seed=None, exclude_features=[], normalized=False, test_train_split=False, cuts_per_feat=1):
     if test_train_split:
-        return build_test_train_DNDT(datafile, output_column_name, num_features, num_cuts, seed, exclude_features, normalized)
+        return build_test_train_DNDT(datafile, output_column_name, num_features, num_cuts, seed, exclude_features, normalized, cuts_per_feat)
     # Set the random seed for PyTorch
     if seed is not None:
         torch.manual_seed(seed)
@@ -87,7 +87,7 @@ def build_test_DNDT(datafile, output_column_name, num_features, num_cuts, seed=N
     # Convert to PyTorch tensors
     x_tensor = torch.tensor(X, dtype=torch.float32)
     y_tensor = torch.tensor(y_one_hot, dtype=torch.float32)
-    num_cut = [1]*num_cuts #num_features  
+    num_cut = [cuts_per_feat]*num_cuts #num_features  
     num_leaf = np.prod(np.array(num_cut) + 1)
     d = X.shape[1]
     #print(X.shape, y.shape, d, num_cut, num_leaf, num_classes)
@@ -123,7 +123,7 @@ def build_test_DNDT(datafile, output_column_name, num_features, num_cuts, seed=N
 
 
 
-def build_test_train_DNDT(datafile, output_column_name, num_features, num_cuts, seed=None, exclude_features=[], normalized=False):
+def build_test_train_DNDT(datafile, output_column_name, num_features, num_cuts, seed=None, exclude_features=[], normalized=False, cuts_per_feat=1):
     
      # Set the random seed for PyTorch
     if seed is not None:
@@ -158,7 +158,7 @@ def build_test_train_DNDT(datafile, output_column_name, num_features, num_cuts, 
     y_one_hot = one_hot_encode(y_int, num_classes)
 
 
-    num_cut = [1]*num_cuts #num_features  
+    num_cut = [cuts_per_feat]*num_cuts #num_features  
     num_leaf = np.prod(np.array(num_cut) + 1)
     #d = X.shape[1]
     #print(X.shape, y.shape, d, num_cut, num_leaf, num_classes)
