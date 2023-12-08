@@ -47,14 +47,17 @@ def build_test_NN(datafile, output_column_name, num_classes, num_features, seed=
     # Split the dataset into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y_int, test_size=0.2, random_state=seed)
 
-    mean = torch.mean()
+    mean = torch.mean(X_train, dim=0)
+    std = torch.std(X_train, dim=0)
+    X_train = (X_train - mean) / std
+    X_test = (X_test - mean) / std
 
 
     # Build a decision tree and train it
     # clf = tree.DecisionTreeClassifier(random_state=seed)
     # clf.fit(X_train, y_train)
     neural_net = NeuralNetwork(num_features, 50, num_classes)
-    neural_net = neural_net.fit(X_train, y_train, X_test, y_test, epochs=10, batch_size=32, learning_rate=0.1)
+    neural_net = neural_net.fit(X_train, y_train, X_test, y_test, epochs=10, batch_size=32, learning_rate=0.01)
 
     yh = neural_net.predict(X_test)
     # Test the model on the test set
