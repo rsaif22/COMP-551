@@ -36,7 +36,7 @@ class NeuralNetwork(nn.Module):
         self.train()
         dataset = TensorDataset(x, y)
 
-        best_model = None 
+        best_model = copy.deepcopy(self)
         best_loss = torch.inf
         
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -62,7 +62,7 @@ class NeuralNetwork(nn.Module):
                     best_loss = test_loss.item()
                     best_model = copy.deepcopy(self)
             acc = (y_pred == y_test).float().mean()
-            print(f"Epoch [{epoch+1}/{epochs}], Loss: {test_loss.item():.4f}, Accuracy: {acc.item():.4f}")
+            # print(f"Epoch [{epoch+1}/{epochs}], Loss: {test_loss.item():.4f}, Accuracy: {acc.item():.4f}")
         return best_model
 
 
